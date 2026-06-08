@@ -9,11 +9,23 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
+    <div id="login-screen" style="display: flex; height: 100vh; width: 100%; align-items: center; justify-content: center;">
+        <div class="form-card" style="text-align: center; max-width: 400px; width: 100%; padding: 40px;">
+            <h2 style="margin-bottom: 10px;">Welcome to Hisab</h2>
+            <p style="color: #6b7280; margin-bottom: 30px;">Please log in to manage your expenses.</p>
+            <button id="login-btn" class="save-btn" style="background: white; color: #333; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" width="20">
+                Sign in with Google
+            </button>
+        </div>
+    </div>
+
+    <div class="container" id="app-container" style="display: none;">
         <div class="left-panel">
             <div class="balance-card">
                 <div class="balance-header">
                     <span><i class="fa-solid fa-wallet"></i> Current Balance</span>
+                    <button id="logout-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer;">Logout</button>
                 </div>
                 <h1 id="total-balance">₹ 0.00</h1>
                 <div class="balance-stats">
@@ -42,8 +54,7 @@
                 <div class="input-group">
                     <i class="fa-solid fa-layer-group"></i>
                     <input type="text" id="category" list="category-options" placeholder="Select or type category">
-                    <datalist id="category-options">
-                        </datalist>
+                    <datalist id="category-options"></datalist>
                 </div>
                 <button class="save-btn" id="save-btn">Save Transaction</button>
             </div>
@@ -53,8 +64,7 @@
             <div class="section-header">
                 <h3>Recent Transactions</h3>
             </div>
-            <ul id="expense-list" class="transaction-list">
-                </ul>
+            <ul id="expense-list" class="transaction-list"></ul>
         </div>
     </div>
 
