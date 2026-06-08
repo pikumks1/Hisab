@@ -20,19 +20,14 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
 const expensesCol = collection(db, "expenses");
-const categoriesCol = collection(db, "categories");
 
 // Runtime State Tracker Indicators
 let currentEditId = null;
 let currentUser = null;
 let unsubscribeExpenses = null;
-let unsubscribeCategories = null;
 
 let allUserExpenses = []; 
 let currentMonthFilter = ""; 
-
-const defaultCategories = ["Food", "Grocery", "Transport", "Bills", "Salary", "Business", "Other"];
-let customCategoriesMap = {}; 
 
 function initMonthSelector() {
     const today = new Date();
@@ -53,7 +48,7 @@ onAuthStateChanged(auth, (user) => {
         currentUser = user;
         initMonthSelector();
         document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('app-container').style.display = 'grid'; // Matches CSS grid layout
+        document.getElementById('app-container').style.display = 'grid'; 
         loadUserData();
     } else {
         currentUser = null;
@@ -61,7 +56,6 @@ onAuthStateChanged(auth, (user) => {
         document.getElementById('app-container').style.display = 'none';
         
         if (unsubscribeExpenses) unsubscribeExpenses();
-        if (unsubscribeCategories) unsubscribeCategories();
     }
 });
 
@@ -74,40 +68,6 @@ document.getElementById('logout-btn').addEventListener('click', () => {
     signOut(auth);
 });
 
-// --- Category Mutation Actions ---
-document.getElementById('add-new-cat-btn').addEventListener('click', async () => {
-    const newCategory = prompt("Enter the name of your new category:");
-    if (newCategory && newCategory.trim() !== "") {
-        const formattedCat = newCategory.trim();
-        if (defaultCategories.map(c => c.toLowerCase()).includes(formattedCat.toLowerCase())) {
-            alert("This category already exists by default.");
-            return;
-        }
-        try {
-            await addDoc(categoriesCol, {
-                userId: currentUser.uid,
-                name: formattedCat,
-                timestamp: new Date()
-            });
-        } catch (error) { console.error("Category insertion fault:", error); }
-    }
-});
-
-document.getElementById('delete-cat-btn').addEventListener('click', async () => {
-    const categorySelect = document.getElementById('category');
-    const selectedCategory = categorySelect.value;
-    if (defaultCategories.includes(selectedCategory)) {
-        alert("Default base operational configurations cannot be removed.");
-        return;
-    }
-    const docId = customCategoriesMap[selectedCategory];
-    if (docId) {
-        if (!confirm(`Are you sure you want to delete the category "${selectedCategory}"?`)) return;
-        try { await deleteDoc(doc(db, "categories", docId)); } 
-        catch (error) { console.error("Category removal fault:", error); }
-    }
-});
-
 // --- Realtime Document Pipelines ---
 function loadUserData() {
     const qExpenses = query(expensesCol, where("userId", "==", currentUser.uid), orderBy("timestamp", "desc"));
@@ -117,32 +77,6 @@ function loadUserData() {
             allUserExpenses.push({ id: docSnapshot.id, ...docSnapshot.data() });
         });
         renderTransactions();
-    });
-
-    const qCategories = query(categoriesCol, where("userId", "==", currentUser.uid), orderBy("timestamp", "asc"));
-    unsubscribeCategories = onSnapshot(qCategories, (snapshot) => {
-        const categorySelect = document.getElementById('category');
-        const previousSelection = categorySelect.value;
-        
-        categorySelect.innerHTML = '';
-        customCategoriesMap = {};
-
-        // Rebuild standard tracking baselines
-        defaultCategories.forEach(cat => {
-            categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
-        });
-
-        // Inject custom configurations
-        snapshot.forEach((docSnapshot) => {
-            const catData = docSnapshot.data();
-            const catId = docSnapshot.id;
-            if (catData.name) {
-                customCategoriesMap[catData.name] = catId;
-                categorySelect.innerHTML += `<option value="${catData.name}">${catData.name}</option>`;
-            }
-        });
-
-        if (previousSelection) categorySelect.value = previousSelection;
     });
 }
 
@@ -208,13 +142,8 @@ window.editTransaction = (id, type, amount, desc, category) => {
     document.getElementById('type').value = type;
     document.getElementById('amount').value = amount;
     document.getElementById('desc').value = desc;
+    document.getElementById('category').value = category;
     
-    const categorySelect = document.getElementById('category');
-    let optionExists = Array.from(categorySelect.options).some(opt => opt.value === category);
-    if (!optionExists) {
-        categorySelect.innerHTML += `<option value="${category}">${category}</option>`;
-    }
-    categorySelect.value = category;
     currentEditId = id;
     
     const saveBtn = document.getElementById('save-btn');
@@ -259,7 +188,7 @@ document.getElementById('save-btn').addEventListener('click', async () => {
 
         document.getElementById('amount').value = '';
         document.getElementById('desc').value = '';
-        document.getElementById('category').value = 'Food';
+        document.getElementById('category').value = 'Food & Dining'; // Reset to first option
     } catch (error) {
         console.error("Data tracking storage fault: ", error);
         alert("Transaction operation failed.");
