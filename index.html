@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Premium Hisab Tracker</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="login-screen" style="display: flex; height: 100vh; width: 100%; align-items: center; justify-content: center;">
-        <div class="form-card" style="text-align: center; max-width: 400px; width: 100%; padding: 40px;">
-            <h2 style="margin-bottom: 10px;">Welcome to Hisab</h2>
-            <p style="color: #6b7280; margin-bottom: 30px;">Please log in to manage your expenses.</p>
-            <button id="login-btn" class="save-btn" style="background: white; color: #333; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" width="20">
+        <div class="login-card">
+            <h2 style="margin-bottom: 8px; font-weight: 700;">Welcome to Hisab</h2>
+            <p style="color: var(--text-muted); margin-bottom: 28px; font-size: 14px;">Securely manage your personal financial records.</p>
+            <button id="login-btn" class="save-btn" style="background: white; color: var(--text); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: none;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" width="18">
                 Sign in with Google
             </button>
         </div>
@@ -25,7 +25,7 @@
             <div class="balance-card">
                 <div class="balance-header">
                     <span><i class="fa-solid fa-wallet"></i> Current Balance</span>
-                    <button id="logout-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer;">Logout</button>
+                    <button id="logout-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 500;">Logout</button>
                 </div>
                 <h1 id="total-balance">₹ 0.00</h1>
                 <div class="balance-stats">
@@ -52,13 +52,21 @@
                     <input type="text" id="desc" placeholder="What was this for?">
                 </div>
                 
-                <div style="display: flex; gap: 5px; margin-bottom: 20px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 20px;">
                     <div class="input-group" style="flex: 1; margin-bottom: 0;">
                         <i class="fa-solid fa-layer-group"></i>
-                        <select id="category"></select>
+                        <select id="category">
+                            <option value="Food">Food</option>
+                            <option value="Grocery">Grocery</option>
+                            <option value="Transport">Transport</option>
+                            <option value="Bills">Bills</option>
+                            <option value="Salary">Salary</option>
+                            <option value="Business">Business</option>
+                            <option value="Other">Other</option>
+                        </select>
                     </div>
-                    <button type="button" id="add-new-cat-btn" style="background: #6b4ce6; color: white; border: none; border-radius: 8px; width: 40px; cursor: pointer; font-size: 18px;" title="Add Custom Category">+</button>
-                    <button type="button" id="delete-cat-btn" style="background: #ef4444; color: white; border: none; border-radius: 8px; width: 40px; cursor: pointer; font-size: 18px;" title="Delete Selected Custom Category">-</button>
+                    <button type="button" id="add-new-cat-btn" class="action-btn" style="background: var(--primary);" title="Create Custom Category">+</button>
+                    <button type="button" id="delete-cat-btn" class="action-btn" style="background: var(--danger);" title="Remove Selected Custom Category">-</button>
                 </div>
 
                 <button class="save-btn" id="save-btn">Save Transaction</button>
@@ -66,9 +74,9 @@
         </div>
 
         <div class="right-panel">
-            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <h3>Transactions</h3>
-                <input type="month" id="month-selector" style="padding: 6px 10px; border-radius: 8px; border: 1px solid #ddd; font-family: 'Poppins', sans-serif; cursor: pointer; outline: none;">
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h3 style="margin-bottom: 0;">Transactions</h3>
+                <input type="month" id="month-selector" style="padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); font-family: inherit; font-size: 14px; font-weight: 500; color: var(--text); outline: none; background: #f1f5f9;">
             </div>
             <ul id="expense-list" class="transaction-list"></ul>
         </div>
