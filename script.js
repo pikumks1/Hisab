@@ -14,22 +14,26 @@ const firebaseConfig = {
     measurementId: "G-S88SKEH4J0"
 };
 
-// Initialize Firebase App and Firestore
+// Initialize Firebase services
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
-const expensesCol = collection(db, "expenses");
 
-// Global state variables
+// Collection references
+const expensesCol = collection(db, "expenses");
+const categoriesCol = collection(db, "categories");
+
+// State management variables
 let currentEditId = null;
 let currentUser = null;
-let unsubscribeData = null;
+let unsubscribeExpenses = null;
+let unsubscribeCategories = null;
 
-// Default categories to always show in the dropdown
 const defaultCategories = ["Food", "Grocery", "Transport", "Bills", "Salary", "Business", "Other"];
+let customCategoriesMap = {}; // Maps custom category names to their Firestore Document IDs
 
-// --- Authentication Logic ---
+// --- Authentication Observers ---
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -41,68 +45,82 @@ onAuthStateChanged(auth, (user) => {
         currentUser = null;
         document.getElementById('login-screen').style.display = 'flex';
         document.getElementById('app-container').style.display = 'none';
-        if (unsubscribeData) unsubscribeData(); // Stop fetching data when logged out
+        
+        // Terminate active snapshot listeners on logout
+        if (unsubscribeExpenses) unsubscribeExpenses();
+        if (unsubscribeCategories) unsubscribeCategories();
     }
 });
 
 document.getElementById('login-btn').addEventListener('click', async () => {
     try { await signInWithPopup(auth, provider); } 
-    catch (error) { console.error("Login Error:", error); }
+    catch (error) { console.error("Authentication Error:", error); }
 });
 
 document.getElementById('logout-btn').addEventListener('click', () => {
     signOut(auth);
 });
 
-// --- Category Logic ---
+// --- Category Event Handlers ---
 
-// Function to handle adding a custom category via the "+" button
-document.getElementById('add-new-cat-btn').addEventListener('click', () => {
+// Create and save custom category to Firestore
+document.getElementById('add-new-cat-btn').addEventListener('click', async () => {
     const newCategory = prompt("Enter the name of your new category:");
-    
     if (newCategory && newCategory.trim() !== "") {
         const formattedCat = newCategory.trim();
-        const categorySelect = document.getElementById('category');
         
-        // Create new option and add it to the dropdown
-        const option = document.createElement('option');
-        option.value = formattedCat;
-        option.innerText = formattedCat;
-        
-        categorySelect.appendChild(option);
-        categorySelect.value = formattedCat; // Auto-select the newly added category
+        if (defaultCategories.includes(formattedCat)) {
+            alert("This category already exists by default.");
+            return;
+        }
+
+        try {
+            await addDoc(categoriesCol, {
+                userId: currentUser.uid,
+                name: formattedCat,
+                timestamp: new Date()
+            });
+        } catch (error) {
+            console.error("Error writing custom category:", error);
+        }
     }
 });
 
-// --- Database Logic ---
+// Delete custom category from Firestore
+document.getElementById('delete-cat-btn').addEventListener('click', async () => {
+    const categorySelect = document.getElementById('category');
+    const selectedCategory = categorySelect.value;
+
+    if (defaultCategories.includes(selectedCategory)) {
+        alert("Default categories cannot be deleted.");
+        return;
+    }
+
+    const docId = customCategoriesMap[selectedCategory];
+    if (docId) {
+        if (!confirm(`Are you sure you want to delete the category "${selectedCategory}"?`)) return;
+        try {
+            await deleteDoc(doc(db, "categories", docId));
+        } catch (error) {
+            console.error("Error removing custom category:", error);
+        }
+    }
+});
+
+// --- Core Database Engine ---
 
 function loadUserData() {
-    // Only fetch data for the logged-in user
-    const q = query(expensesCol, where("userId", "==", currentUser.uid), orderBy("timestamp", "desc"));
-    
-    unsubscribeData = onSnapshot(q, (snapshot) => {
+    // Pipeline 1: Securely stream transactions isolated by User ID
+    const qExpenses = query(expensesCol, where("userId", "==", currentUser.uid), orderBy("timestamp", "desc"));
+    unsubscribeExpenses = onSnapshot(qExpenses, (snapshot) => {
         const list = document.getElementById('expense-list');
-        const categorySelect = document.getElementById('category');
-        
         let totalIncome = 0;
         let totalExpense = 0;
-        
-        // Start with default categories, adding unique ones from the database
-        const uniqueCategories = new Set(defaultCategories);
-        
-        // Save current category selection to prevent UI reset on refresh
-        const currentSelectedCategory = categorySelect.value;
-        
         list.innerHTML = '';
 
         snapshot.forEach((docSnapshot) => {
             const exp = docSnapshot.data();
             const docId = docSnapshot.id;
-            
-            // Learn new categories from database history
-            if (exp.category) {
-                uniqueCategories.add(exp.category);
-            }
             
             const transType = exp.type || 'expense';
             if (transType === 'income') totalIncome += exp.amount;
@@ -132,47 +150,63 @@ function loadUserData() {
             `;
         });
 
-        // Repopulate category dropdown
-        categorySelect.innerHTML = '';
-        uniqueCategories.forEach(cat => { 
-            categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`; 
-        });
-        
-        // Restore previous selection if it exists
-        if (currentSelectedCategory && uniqueCategories.has(currentSelectedCategory)) {
-            categorySelect.value = currentSelectedCategory;
-        } else {
-            categorySelect.value = "Food"; // Default fallback
-        }
-
         const currentBalance = totalIncome - totalExpense;
         document.getElementById('total-balance').innerText = `₹ ${currentBalance.toFixed(2)}`;
         document.getElementById('income-total').innerText = `₹ ${totalIncome.toFixed(2)}`;
         document.getElementById('expense-total').innerText = `₹ ${totalExpense.toFixed(2)}`;
     });
+
+    // Pipeline 2: Securely stream custom categories isolated by User ID
+    const qCategories = query(categoriesCol, where("userId", "==", currentUser.uid), orderBy("timestamp", "asc"));
+    unsubscribeCategories = onSnapshot(qCategories, (snapshot) => {
+        const categorySelect = document.getElementById('category');
+        const previousSelection = categorySelect.value;
+        
+        categorySelect.innerHTML = '';
+        customCategoriesMap = {};
+
+        // Load constant standard categories
+        defaultCategories.forEach(cat => {
+            categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+        });
+
+        // Append user specific authenticated records
+        snapshot.forEach((docSnapshot) => {
+            const catData = docSnapshot.data();
+            const catId = docSnapshot.id;
+            if (catData.name) {
+                customCategoriesMap[catData.name] = catId;
+                categorySelect.innerHTML += `<option value="${catData.name}">${catData.name}</option>`;
+            }
+        });
+
+        // Retain visual input state consistency across snapshots
+        if (previousSelection) {
+            categorySelect.value = previousSelection;
+        }
+    });
 }
 
-// Method to delete a transaction
 window.deleteTransaction = async (id) => {
     if (!confirm("Are you sure you want to delete this transaction?")) return;
-    try { await deleteDoc(doc(db, "expenses", id)); } 
-    catch (error) { console.error("Delete Error:", error); }
+    try { 
+        await deleteDoc(doc(db, "expenses", id)); 
+    } catch (error) { 
+        console.error("Deletion lifecycle failure:", error); 
+    }
 };
 
-// Method to populate the form for editing
 window.editTransaction = (id, type, amount, desc, category) => {
     document.getElementById('type').value = type;
     document.getElementById('amount').value = amount;
     document.getElementById('desc').value = desc;
     
     const categorySelect = document.getElementById('category');
-    // Ensure the category exists in the dropdown before selecting
     let optionExists = Array.from(categorySelect.options).some(opt => opt.value === category);
     if (!optionExists) {
         categorySelect.innerHTML += `<option value="${category}">${category}</option>`;
     }
     categorySelect.value = category;
-    
     currentEditId = id;
     
     const saveBtn = document.getElementById('save-btn');
@@ -181,7 +215,6 @@ window.editTransaction = (id, type, amount, desc, category) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-// Event listener for saving/updating a transaction
 document.getElementById('save-btn').addEventListener('click', async () => {
     const type = document.getElementById('type').value;
     const amount = document.getElementById('amount').value;
@@ -189,7 +222,7 @@ document.getElementById('save-btn').addEventListener('click', async () => {
     const category = document.getElementById('category').value;
 
     if (!amount || !desc || !category) {
-        alert("Amount, Description, and Category are required.");
+        alert("All structural fields are required parameters.");
         return;
     }
 
@@ -207,7 +240,7 @@ document.getElementById('save-btn').addEventListener('click', async () => {
             saveBtn.style.background = 'var(--primary)';
         } else {
             await addDoc(expensesCol, {
-                userId: currentUser.uid,
+                userId: currentUser.uid, // Strict owner mapping
                 type: type,
                 amount: parseFloat(amount),
                 description: desc,
@@ -218,9 +251,9 @@ document.getElementById('save-btn').addEventListener('click', async () => {
 
         document.getElementById('amount').value = '';
         document.getElementById('desc').value = '';
-        document.getElementById('category').value = 'Food'; // Reset to default
+        document.getElementById('category').value = 'Food';
     } catch (error) {
-        console.error("Error saving document: ", error);
-        alert("Error saving transaction. Check console.");
+        console.error("Mutation tracking fault: ", error);
+        alert("Transaction persist failed.");
     }
 });
