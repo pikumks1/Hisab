@@ -1,7 +1,9 @@
+// Import Firebase Modular SDKs
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
+// Firebase Configuration
 const firebaseConfig = {
     apiKey: "AIzaSyC_wWIFyTQ5p1UoVobu7XekYnxAl-aOnjA",
     authDomain: "expensetrack-c82d3.firebaseapp.com",
@@ -12,16 +14,19 @@ const firebaseConfig = {
     measurementId: "G-S88SKEH4J0"
 };
 
+// Initialize Firebase App and Firestore
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 const expensesCol = collection(db, "expenses");
 
+// Global state variables
 let currentEditId = null;
 let currentUser = null;
-let unsubscribeData = null; // Stops loading data when logged out
+let unsubscribeData = null;
 
+// Default categories to always show in the dropdown
 const defaultCategories = ["Food", "Grocery", "Transport", "Bills", "Salary", "Business", "Other"];
 
 // --- Authentication Logic ---
@@ -36,7 +41,7 @@ onAuthStateChanged(auth, (user) => {
         currentUser = null;
         document.getElementById('login-screen').style.display = 'flex';
         document.getElementById('app-container').style.display = 'none';
-        if (unsubscribeData) unsubscribeData(); // Stop fetching data
+        if (unsubscribeData) unsubscribeData(); // Stop fetching data when logged out
     }
 });
 
@@ -49,17 +54,44 @@ document.getElementById('logout-btn').addEventListener('click', () => {
     signOut(auth);
 });
 
+// --- Category Logic ---
+
+// Function to handle adding a custom category via the "+" button
+document.getElementById('add-new-cat-btn').addEventListener('click', () => {
+    const newCategory = prompt("Enter the name of your new category:");
+    
+    if (newCategory && newCategory.trim() !== "") {
+        const formattedCat = newCategory.trim();
+        const categorySelect = document.getElementById('category');
+        
+        // Create new option and add it to the dropdown
+        const option = document.createElement('option');
+        option.value = formattedCat;
+        option.innerText = formattedCat;
+        
+        categorySelect.appendChild(option);
+        categorySelect.value = formattedCat; // Auto-select the newly added category
+    }
+});
+
 // --- Database Logic ---
 
 function loadUserData() {
-    // Only fetch data where userId matches the currently logged-in user
+    // Only fetch data for the logged-in user
     const q = query(expensesCol, where("userId", "==", currentUser.uid), orderBy("timestamp", "desc"));
     
     unsubscribeData = onSnapshot(q, (snapshot) => {
         const list = document.getElementById('expense-list');
+        const categorySelect = document.getElementById('category');
+        
         let totalIncome = 0;
         let totalExpense = 0;
+        
+        // Start with default categories, adding unique ones from the database
         const uniqueCategories = new Set(defaultCategories);
+        
+        // Save current category selection to prevent UI reset on refresh
+        const currentSelectedCategory = categorySelect.value;
         
         list.innerHTML = '';
 
@@ -67,7 +99,10 @@ function loadUserData() {
             const exp = docSnapshot.data();
             const docId = docSnapshot.id;
             
-            if (exp.category) uniqueCategories.add(exp.category);
+            // Learn new categories from database history
+            if (exp.category) {
+                uniqueCategories.add(exp.category);
+            }
             
             const transType = exp.type || 'expense';
             if (transType === 'income') totalIncome += exp.amount;
@@ -97,9 +132,18 @@ function loadUserData() {
             `;
         });
 
-        const datalist = document.getElementById('category-options');
-        datalist.innerHTML = '';
-        uniqueCategories.forEach(cat => { datalist.innerHTML += `<option value="${cat}"></option>`; });
+        // Repopulate category dropdown
+        categorySelect.innerHTML = '';
+        uniqueCategories.forEach(cat => { 
+            categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`; 
+        });
+        
+        // Restore previous selection if it exists
+        if (currentSelectedCategory && uniqueCategories.has(currentSelectedCategory)) {
+            categorySelect.value = currentSelectedCategory;
+        } else {
+            categorySelect.value = "Food"; // Default fallback
+        }
 
         const currentBalance = totalIncome - totalExpense;
         document.getElementById('total-balance').innerText = `₹ ${currentBalance.toFixed(2)}`;
@@ -108,17 +152,27 @@ function loadUserData() {
     });
 }
 
+// Method to delete a transaction
 window.deleteTransaction = async (id) => {
     if (!confirm("Are you sure you want to delete this transaction?")) return;
     try { await deleteDoc(doc(db, "expenses", id)); } 
-    catch (error) { console.error(error); }
+    catch (error) { console.error("Delete Error:", error); }
 };
 
+// Method to populate the form for editing
 window.editTransaction = (id, type, amount, desc, category) => {
     document.getElementById('type').value = type;
     document.getElementById('amount').value = amount;
     document.getElementById('desc').value = desc;
-    document.getElementById('category').value = category;
+    
+    const categorySelect = document.getElementById('category');
+    // Ensure the category exists in the dropdown before selecting
+    let optionExists = Array.from(categorySelect.options).some(opt => opt.value === category);
+    if (!optionExists) {
+        categorySelect.innerHTML += `<option value="${category}">${category}</option>`;
+    }
+    categorySelect.value = category;
+    
     currentEditId = id;
     
     const saveBtn = document.getElementById('save-btn');
@@ -127,6 +181,7 @@ window.editTransaction = (id, type, amount, desc, category) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
+// Event listener for saving/updating a transaction
 document.getElementById('save-btn').addEventListener('click', async () => {
     const type = document.getElementById('type').value;
     const amount = document.getElementById('amount').value;
@@ -151,7 +206,6 @@ document.getElementById('save-btn').addEventListener('click', async () => {
             saveBtn.innerText = 'Save Transaction';
             saveBtn.style.background = 'var(--primary)';
         } else {
-            // Attach the current user's ID to the new transaction
             await addDoc(expensesCol, {
                 userId: currentUser.uid,
                 type: type,
@@ -164,7 +218,7 @@ document.getElementById('save-btn').addEventListener('click', async () => {
 
         document.getElementById('amount').value = '';
         document.getElementById('desc').value = '';
-        document.getElementById('category').value = '';
+        document.getElementById('category').value = 'Food'; // Reset to default
     } catch (error) {
         console.error("Error saving document: ", error);
         alert("Error saving transaction. Check console.");
