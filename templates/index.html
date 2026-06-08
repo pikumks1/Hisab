@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Hisab Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="left-panel">
+            <div class="balance-card">
+                <div class="balance-header">
+                    <span><i class="fa-solid fa-wallet"></i> Current Balance</span>
+                </div>
+                <h1 id="total-balance">₹ 0.00</h1>
+                <div class="balance-stats">
+                    <div><i class="fa-solid fa-arrow-down" style="color: #4ade80;"></i> Income <br><strong>₹ 0.00</strong></div>
+                    <div><i class="fa-solid fa-arrow-up" style="color: #f87171;"></i> Expenses <br><strong id="expense-total">₹ 0.00</strong></div>
+                </div>
+            </div>
+
+            <div class="form-card">
+                <h3>Add Expense</h3>
+                <div class="input-group">
+                    <i class="fa-solid fa-indian-rupee-sign"></i>
+                    <input type="number" id="amount" placeholder="0.00">
+                </div>
+                <div class="input-group">
+                    <i class="fa-solid fa-file-invoice"></i>
+                    <input type="text" id="desc" placeholder="What did you spend on?">
+                </div>
+                <div class="input-group">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <select id="category">
+                        <option value="Food">Food</option>
+                        <option value="Grocery">Grocery</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Bills">Bills</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <button class="save-btn" id="save-btn">Save Expense</button>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="section-header">
+                <h3>Recent Transactions</h3>
+            </div>
+            <ul id="expense-list" class="transaction-list">
+                </ul>
+        </div>
+    </div>
+
+    <script type="module" src="/static/script.js"></script>
+</body>
+</html>
