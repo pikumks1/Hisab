@@ -14,30 +14,45 @@ const firebaseConfig = {
     measurementId: "G-S88SKEH4J0"
 };
 
-// Initialize Firebase services
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// Collection references
 const expensesCol = collection(db, "expenses");
 const categoriesCol = collection(db, "categories");
 
-// State management variables
+// Global State
 let currentEditId = null;
 let currentUser = null;
 let unsubscribeExpenses = null;
 let unsubscribeCategories = null;
 
+let allUserExpenses = []; // Holds all data temporarily for fast filtering
+let currentMonthFilter = ""; // Tracks currently selected YYYY-MM
+
 const defaultCategories = ["Food", "Grocery", "Transport", "Bills", "Salary", "Business", "Other"];
-let customCategoriesMap = {}; // Maps custom category names to their Firestore Document IDs
+let customCategoriesMap = {}; 
+
+// --- Setup Month Selector ---
+function initMonthSelector() {
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yyyy = today.getFullYear();
+    currentMonthFilter = `${yyyy}-${mm}`;
+    document.getElementById('month-selector').value = currentMonthFilter;
+}
+
+document.getElementById('month-selector').addEventListener('change', (e) => {
+    currentMonthFilter = e.target.value;
+    renderTransactions(); // Refresh UI when month changes
+});
 
 // --- Authentication Observers ---
-
 onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
+        initMonthSelector();
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app-container').style.display = 'flex';
         loadUserData();
@@ -46,7 +61,6 @@ onAuthStateChanged(auth, (user) => {
         document.getElementById('login-screen').style.display = 'flex';
         document.getElementById('app-container').style.display = 'none';
         
-        // Terminate active snapshot listeners on logout
         if (unsubscribeExpenses) unsubscribeExpenses();
         if (unsubscribeCategories) unsubscribeCategories();
     }
@@ -62,71 +76,96 @@ document.getElementById('logout-btn').addEventListener('click', () => {
 });
 
 // --- Category Event Handlers ---
-
-// Create and save custom category to Firestore
 document.getElementById('add-new-cat-btn').addEventListener('click', async () => {
     const newCategory = prompt("Enter the name of your new category:");
     if (newCategory && newCategory.trim() !== "") {
         const formattedCat = newCategory.trim();
-        
         if (defaultCategories.includes(formattedCat)) {
             alert("This category already exists by default.");
             return;
         }
-
         try {
             await addDoc(categoriesCol, {
                 userId: currentUser.uid,
                 name: formattedCat,
                 timestamp: new Date()
             });
-        } catch (error) {
-            console.error("Error writing custom category:", error);
-        }
+        } catch (error) { console.error("Error writing custom category:", error); }
     }
 });
 
-// Delete custom category from Firestore
 document.getElementById('delete-cat-btn').addEventListener('click', async () => {
     const categorySelect = document.getElementById('category');
     const selectedCategory = categorySelect.value;
-
     if (defaultCategories.includes(selectedCategory)) {
         alert("Default categories cannot be deleted.");
         return;
     }
-
     const docId = customCategoriesMap[selectedCategory];
     if (docId) {
         if (!confirm(`Are you sure you want to delete the category "${selectedCategory}"?`)) return;
-        try {
-            await deleteDoc(doc(db, "categories", docId));
-        } catch (error) {
-            console.error("Error removing custom category:", error);
-        }
+        try { await deleteDoc(doc(db, "categories", docId)); } 
+        catch (error) { console.error("Error removing custom category:", error); }
     }
 });
 
 // --- Core Database Engine ---
-
 function loadUserData() {
-    // Pipeline 1: Securely stream transactions isolated by User ID
+    // 1. Fetch Expenses (Runs automatically when db updates)
     const qExpenses = query(expensesCol, where("userId", "==", currentUser.uid), orderBy("timestamp", "desc"));
     unsubscribeExpenses = onSnapshot(qExpenses, (snapshot) => {
-        const list = document.getElementById('expense-list');
-        let totalIncome = 0;
-        let totalExpense = 0;
-        list.innerHTML = '';
+        allUserExpenses = []; // Clear array
+        snapshot.forEach((docSnapshot) => {
+            allUserExpenses.push({ id: docSnapshot.id, ...docSnapshot.data() });
+        });
+        renderTransactions(); // Draw data on screen
+    });
+
+    // 2. Fetch Categories
+    const qCategories = query(categoriesCol, where("userId", "==", currentUser.uid), orderBy("timestamp", "asc"));
+    unsubscribeCategories = onSnapshot(qCategories, (snapshot) => {
+        const categorySelect = document.getElementById('category');
+        const previousSelection = categorySelect.value;
+        
+        categorySelect.innerHTML = '';
+        customCategoriesMap = {};
+
+        defaultCategories.forEach(cat => { categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`; });
 
         snapshot.forEach((docSnapshot) => {
-            const exp = docSnapshot.data();
-            const docId = docSnapshot.id;
-            
+            const catData = docSnapshot.data();
+            const catId = docSnapshot.id;
+            if (catData.name) {
+                customCategoriesMap[catData.name] = catId;
+                categorySelect.innerHTML += `<option value="${catData.name}">${catData.name}</option>`;
+            }
+        });
+
+        if (previousSelection) categorySelect.value = previousSelection;
+    });
+}
+
+// --- UI Rendering Engine ---
+function renderTransactions() {
+    const list = document.getElementById('expense-list');
+    let totalIncome = 0;
+    let totalExpense = 0;
+    list.innerHTML = '';
+
+    allUserExpenses.forEach((exp) => {
+        const dateObj = exp.timestamp ? exp.timestamp.toDate() : new Date();
+        
+        // Extract YYYY-MM from document timestamp
+        const expMonth = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const expYear = dateObj.getFullYear();
+        const expMonthYear = `${expYear}-${expMonth}`;
+
+        // Process only if it matches selected month
+        if (expMonthYear === currentMonthFilter) {
             const transType = exp.type || 'expense';
             if (transType === 'income') totalIncome += exp.amount;
             else totalExpense += exp.amount;
             
-            const dateObj = exp.timestamp ? exp.timestamp.toDate() : new Date();
             const dateString = dateObj.toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             const safeDesc = exp.description.replace(/'/g, "\\'");
             const amountColor = transType === 'income' ? '#4ade80' : '#ef4444';
@@ -142,58 +181,27 @@ function loadUserData() {
                     <div style="display: flex; align-items: center; gap: 15px;">
                         <span class="trans-amount" style="color: ${amountColor}; font-weight: bold;">${sign} ₹ ${exp.amount.toFixed(2)}</span>
                         <div style="display: flex; gap: 12px;">
-                            <i class="fa-solid fa-pen-to-square" onclick="window.editTransaction('${docId}', '${transType}', ${exp.amount}, '${safeDesc}', '${exp.category}')" style="color: #6b4ce6; cursor: pointer; font-size: 16px;"></i>
-                            <i class="fa-solid fa-trash" onclick="window.deleteTransaction('${docId}')" style="color: #ef4444; cursor: pointer; font-size: 16px;"></i>
+                            <i class="fa-solid fa-pen-to-square" onclick="window.editTransaction('${exp.id}', '${transType}', ${exp.amount}, '${safeDesc}', '${exp.category}')" style="color: #6b4ce6; cursor: pointer; font-size: 16px;"></i>
+                            <i class="fa-solid fa-trash" onclick="window.deleteTransaction('${exp.id}')" style="color: #ef4444; cursor: pointer; font-size: 16px;"></i>
                         </div>
                     </div>
                 </li>
             `;
-        });
-
-        const currentBalance = totalIncome - totalExpense;
-        document.getElementById('total-balance').innerText = `₹ ${currentBalance.toFixed(2)}`;
-        document.getElementById('income-total').innerText = `₹ ${totalIncome.toFixed(2)}`;
-        document.getElementById('expense-total').innerText = `₹ ${totalExpense.toFixed(2)}`;
-    });
-
-    // Pipeline 2: Securely stream custom categories isolated by User ID
-    const qCategories = query(categoriesCol, where("userId", "==", currentUser.uid), orderBy("timestamp", "asc"));
-    unsubscribeCategories = onSnapshot(qCategories, (snapshot) => {
-        const categorySelect = document.getElementById('category');
-        const previousSelection = categorySelect.value;
-        
-        categorySelect.innerHTML = '';
-        customCategoriesMap = {};
-
-        // Load constant standard categories
-        defaultCategories.forEach(cat => {
-            categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
-        });
-
-        // Append user specific authenticated records
-        snapshot.forEach((docSnapshot) => {
-            const catData = docSnapshot.data();
-            const catId = docSnapshot.id;
-            if (catData.name) {
-                customCategoriesMap[catData.name] = catId;
-                categorySelect.innerHTML += `<option value="${catData.name}">${catData.name}</option>`;
-            }
-        });
-
-        // Retain visual input state consistency across snapshots
-        if (previousSelection) {
-            categorySelect.value = previousSelection;
         }
     });
+
+    // Update Dashboard Cards
+    const currentBalance = totalIncome - totalExpense;
+    document.getElementById('total-balance').innerText = `₹ ${currentBalance.toFixed(2)}`;
+    document.getElementById('income-total').innerText = `₹ ${totalIncome.toFixed(2)}`;
+    document.getElementById('expense-total').innerText = `₹ ${totalExpense.toFixed(2)}`;
 }
 
+// --- CRUD Operations ---
 window.deleteTransaction = async (id) => {
     if (!confirm("Are you sure you want to delete this transaction?")) return;
-    try { 
-        await deleteDoc(doc(db, "expenses", id)); 
-    } catch (error) { 
-        console.error("Deletion lifecycle failure:", error); 
-    }
+    try { await deleteDoc(doc(db, "expenses", id)); } 
+    catch (error) { console.error("Deletion lifecycle failure:", error); }
 };
 
 window.editTransaction = (id, type, amount, desc, category) => {
@@ -222,10 +230,12 @@ document.getElementById('save-btn').addEventListener('click', async () => {
     const category = document.getElementById('category').value;
 
     if (!amount || !desc || !category) {
-        alert("All structural fields are required parameters.");
+        alert("All fields are required.");
         return;
     }
 
+    // Force date to be within selected month if they are updating a past transaction?
+    // Let's keep it simple: new transactions save with current timestamp.
     try {
         if (currentEditId) {
             await updateDoc(doc(db, "expenses", currentEditId), {
@@ -240,12 +250,12 @@ document.getElementById('save-btn').addEventListener('click', async () => {
             saveBtn.style.background = 'var(--primary)';
         } else {
             await addDoc(expensesCol, {
-                userId: currentUser.uid, // Strict owner mapping
+                userId: currentUser.uid,
                 type: type,
                 amount: parseFloat(amount),
                 description: desc,
                 category: category,
-                timestamp: new Date()
+                timestamp: new Date() // Always records as current real-world date
             });
         }
 

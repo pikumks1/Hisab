@@ -55,8 +55,7 @@
                 <div style="display: flex; gap: 5px; margin-bottom: 20px;">
                     <div class="input-group" style="flex: 1; margin-bottom: 0;">
                         <i class="fa-solid fa-layer-group"></i>
-                        <select id="category">
-                            </select>
+                        <select id="category"></select>
                     </div>
                     <button type="button" id="add-new-cat-btn" style="background: #6b4ce6; color: white; border: none; border-radius: 8px; width: 40px; cursor: pointer; font-size: 18px;" title="Add Custom Category">+</button>
                     <button type="button" id="delete-cat-btn" style="background: #ef4444; color: white; border: none; border-radius: 8px; width: 40px; cursor: pointer; font-size: 18px;" title="Delete Selected Custom Category">-</button>
@@ -67,8 +66,9 @@
         </div>
 
         <div class="right-panel">
-            <div class="section-header">
-                <h3>Recent Transactions</h3>
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>Transactions</h3>
+                <input type="month" id="month-selector" style="padding: 6px 10px; border-radius: 8px; border: 1px solid #ddd; font-family: 'Poppins', sans-serif; cursor: pointer; outline: none;">
             </div>
             <ul id="expense-list" class="transaction-list"></ul>
         </div>
