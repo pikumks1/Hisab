@@ -17,32 +17,35 @@
                 </div>
                 <h1 id="total-balance">₹ 0.00</h1>
                 <div class="balance-stats">
-                    <div><i class="fa-solid fa-arrow-down" style="color: #4ade80;"></i> Income <br><strong>₹ 0.00</strong></div>
+                    <div><i class="fa-solid fa-arrow-down" style="color: #4ade80;"></i> Income <br><strong id="income-total">₹ 0.00</strong></div>
                     <div><i class="fa-solid fa-arrow-up" style="color: #f87171;"></i> Expenses <br><strong id="expense-total">₹ 0.00</strong></div>
                 </div>
             </div>
 
             <div class="form-card">
-                <h3>Add Expense</h3>
+                <h3>Add Transaction</h3>
+                <div class="input-group">
+                    <i class="fa-solid fa-money-bill-transfer"></i>
+                    <select id="type">
+                        <option value="expense">Expense</option>
+                        <option value="income">Income</option>
+                    </select>
+                </div>
                 <div class="input-group">
                     <i class="fa-solid fa-indian-rupee-sign"></i>
                     <input type="number" id="amount" placeholder="0.00">
                 </div>
                 <div class="input-group">
                     <i class="fa-solid fa-file-invoice"></i>
-                    <input type="text" id="desc" placeholder="What did you spend on?">
+                    <input type="text" id="desc" placeholder="What was this for?">
                 </div>
                 <div class="input-group">
                     <i class="fa-solid fa-layer-group"></i>
-                    <select id="category">
-                        <option value="Food">Food</option>
-                        <option value="Grocery">Grocery</option>
-                        <option value="Transport">Transport</option>
-                        <option value="Bills">Bills</option>
-                        <option value="Other">Other</option>
-                    </select>
+                    <input type="text" id="category" list="category-options" placeholder="Select or type category">
+                    <datalist id="category-options">
+                        </datalist>
                 </div>
-                <button class="save-btn" id="save-btn">Save Expense</button>
+                <button class="save-btn" id="save-btn">Save Transaction</button>
             </div>
         </div>
 
