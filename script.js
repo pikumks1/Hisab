@@ -47,6 +47,66 @@ document.getElementById('month-selector').addEventListener('change', (e) => {
 });
 
 // --- Authentication Listeners & State Validation ---
+
+// --- LOCAL TEST MODE SWITCH ---
+const LOCAL_TEST_MODE = false; // Isko deploy karne se pehle 'false' kar dena!
+
+if (LOCAL_TEST_MODE) {
+    // Dummy User Setup for Local Testing
+    currentUser = { uid: "test-user-123" };
+    
+    const userNameEl = document.getElementById('user-name');
+    const userPicEl = document.getElementById('user-profile-pic');
+    if (userNameEl) userNameEl.innerText = 'Gaurav (Local Test)';
+    if (userPicEl) userPicEl.src = 'https://via.placeholder.com/40';
+
+    initMonthSelector();
+    
+    // Direct UI Toggle (Bypass Login Screen)
+    const loginScreen = document.getElementById('login-screen');
+    const appWrapper = document.getElementById('app-wrapper');
+    const appContainer = document.getElementById('app-container');
+    
+    if (loginScreen) loginScreen.style.display = 'none';
+    if (appWrapper) appWrapper.style.display = 'block'; 
+    if (appContainer) appContainer.style.display = 'grid';
+    
+    loadUserData();
+} else {
+    // --- ORIGINAL AUTHENTICATION LOGIC ---
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUser = user;
+            initMonthSelector();
+            
+            const userNameEl = document.getElementById('user-name');
+            const userPicEl = document.getElementById('user-profile-pic');
+            if (userNameEl) userNameEl.innerText = user.displayName || 'User';
+            if (userPicEl) userPicEl.src = user.photoURL || 'https://via.placeholder.com/40';
+
+            const loginScreen = document.getElementById('login-screen');
+            const appWrapper = document.getElementById('app-wrapper');
+            const appContainer = document.getElementById('app-container');
+            
+            if (loginScreen) loginScreen.style.display = 'none';
+            if (appWrapper) appWrapper.style.display = 'block'; 
+            if (appContainer) appContainer.style.display = 'grid';
+            
+            loadUserData();
+        } else {
+            currentUser = null;
+            const loginScreen = document.getElementById('login-screen');
+            const appWrapper = document.getElementById('app-wrapper');
+            
+            if (loginScreen) loginScreen.style.display = 'flex';
+            if (appWrapper) appWrapper.style.display = 'none';
+            
+            if (unsubscribeExpenses) unsubscribeExpenses();
+        }
+    });
+}
+
+/*
 onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
@@ -80,6 +140,7 @@ onAuthStateChanged(auth, (user) => {
         if (unsubscribeExpenses) unsubscribeExpenses();
     }
 });
+*/
 
 document.getElementById('login-btn').addEventListener('click', async () => {
     try { await signInWithPopup(auth, provider); } 
