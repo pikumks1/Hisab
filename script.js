@@ -46,14 +46,20 @@ document.getElementById('month-selector').addEventListener('change', (e) => {
 onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
+        
+        // Populate User Profile UI
+        document.getElementById('user-name').innerText = user.displayName;
+        document.getElementById('user-profile-pic').src = user.photoURL || 'https://via.placeholder.com/40';
+
         initMonthSelector();
         document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('app-container').style.display = 'grid'; 
+        document.getElementById('app-wrapper').style.display = 'block'; 
+        
         loadUserData();
     } else {
         currentUser = null;
         document.getElementById('login-screen').style.display = 'flex';
-        document.getElementById('app-container').style.display = 'none';
+        document.getElementById('app-wrapper').style.display = 'none';
         
         if (unsubscribeExpenses) unsubscribeExpenses();
     }
@@ -188,7 +194,7 @@ document.getElementById('save-btn').addEventListener('click', async () => {
 
         document.getElementById('amount').value = '';
         document.getElementById('desc').value = '';
-        document.getElementById('category').value = 'Food & Dining'; // Reset to first option
+        document.getElementById('category').value = 'Food & Dining'; 
     } catch (error) {
         console.error("Data tracking storage fault: ", error);
         alert("Transaction operation failed.");

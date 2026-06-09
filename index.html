@@ -20,66 +20,81 @@
         </div>
     </div>
 
-    <div class="container" id="app-container" style="display: none;">
-        <div class="left-panel">
-            <div class="balance-card">
-                <div class="balance-header">
-                    <span><i class="fa-solid fa-wallet"></i> Current Balance</span>
-                    <button id="logout-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 500;">Logout</button>
+    <div id="app-wrapper" style="display: none;">
+        
+        <nav class="top-navbar">
+            <div class="app-brand">
+                <i class="fa-solid fa-wallet"></i> Hisab
+            </div>
+            <div class="user-profile">
+                <span id="user-name">Loading...</span>
+                <img id="user-profile-pic" src="https://via.placeholder.com/40" alt="Profile">
+                <button id="logout-btn" class="logout-btn" title="Logout">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </nav>
+
+        <div class="container" id="app-container">
+            <div class="left-panel">
+                <div class="balance-card">
+                    <div class="balance-header">
+                        <span><i class="fa-solid fa-chart-pie"></i> Current Balance</span>
+                    </div>
+                    <h1 id="total-balance">₹ 0.00</h1>
+                    <div class="balance-stats">
+                        <div><i class="fa-solid fa-arrow-down" style="color: #4ade80;"></i> Income <br><strong id="income-total">₹ 0.00</strong></div>
+                        <div><i class="fa-solid fa-arrow-up" style="color: #f87171;"></i> Expenses <br><strong id="expense-total">₹ 0.00</strong></div>
+                    </div>
                 </div>
-                <h1 id="total-balance">₹ 0.00</h1>
-                <div class="balance-stats">
-                    <div><i class="fa-solid fa-arrow-down" style="color: #4ade80;"></i> Income <br><strong id="income-total">₹ 0.00</strong></div>
-                    <div><i class="fa-solid fa-arrow-up" style="color: #f87171;"></i> Expenses <br><strong id="expense-total">₹ 0.00</strong></div>
+
+                <div class="form-card">
+                    <h3>Add Transaction</h3>
+                    <div class="input-group">
+                        <i class="fa-solid fa-money-bill-transfer"></i>
+                        <select id="type">
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <i class="fa-solid fa-indian-rupee-sign"></i>
+                        <input type="number" id="amount" placeholder="0.00">
+                    </div>
+                    <div class="input-group">
+                        <i class="fa-solid fa-file-invoice"></i>
+                        <input type="text" id="desc" placeholder="What was this for?">
+                    </div>
+                    
+                    <div class="input-group">
+                        <i class="fa-solid fa-layer-group"></i>
+                        <select id="category">
+                            <option value="Food & Dining">Food & Dining</option>
+                            <option value="Groceries">Groceries</option>
+                            <option value="Transport & Fuel">Transport & Fuel</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Bills & Utilities">Bills & Utilities</option>
+                            <option value="Rent or EMI">Rent or EMI</option>
+                            <option value="Health & Medical">Health & Medical</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Investment">Investment</option>
+                            <option value="Salary">Salary</option>
+                            <option value="Business">Business</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <button class="save-btn" id="save-btn">Save Transaction</button>
                 </div>
             </div>
 
-            <div class="form-card">
-                <h3>Add Transaction</h3>
-                <div class="input-group">
-                    <i class="fa-solid fa-money-bill-transfer"></i>
-                    <select id="type">
-                        <option value="expense">Expense</option>
-                        <option value="income">Income</option>
-                    </select>
+            <div class="right-panel">
+                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <h3 style="margin-bottom: 0;">Transactions</h3>
+                    <input type="month" id="month-selector" style="padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); font-family: inherit; font-size: 14px; font-weight: 500; color: var(--text); outline: none; background: #f1f5f9;">
                 </div>
-                <div class="input-group">
-                    <i class="fa-solid fa-indian-rupee-sign"></i>
-                    <input type="number" id="amount" placeholder="0.00">
-                </div>
-                <div class="input-group">
-                    <i class="fa-solid fa-file-invoice"></i>
-                    <input type="text" id="desc" placeholder="What was this for?">
-                </div>
-                
-                <div class="input-group">
-                    <i class="fa-solid fa-layer-group"></i>
-                    <select id="category">
-                        <option value="Food & Dining">Food & Dining</option>
-                        <option value="Groceries">Groceries</option>
-                        <option value="Transport & Fuel">Transport & Fuel</option>
-                        <option value="Shopping">Shopping</option>
-                        <option value="Bills & Utilities">Bills & Utilities</option>
-                        <option value="Rent or EMI">Rent or EMI</option>
-                        <option value="Health & Medical">Health & Medical</option>
-                        <option value="Entertainment">Entertainment</option>
-                        <option value="Investment">Investment</option>
-                        <option value="Salary">Salary</option>
-                        <option value="Business">Business</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-
-                <button class="save-btn" id="save-btn">Save Transaction</button>
+                <ul id="expense-list" class="transaction-list"></ul>
             </div>
-        </div>
-
-        <div class="right-panel">
-            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                <h3 style="margin-bottom: 0;">Transactions</h3>
-                <input type="month" id="month-selector" style="padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); font-family: inherit; font-size: 14px; font-weight: 500; color: var(--text); outline: none; background: #f1f5f9;">
-            </div>
-            <ul id="expense-list" class="transaction-list"></ul>
         </div>
     </div>
 
