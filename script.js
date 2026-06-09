@@ -403,7 +403,8 @@ function updateAnalytics(categoryData) {
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                padding: 60 // Text ke liye thodi aur jagah chhod di taaki bahar na kate
+                //padding: 60 // Text ke liye thodi aur jagah chhod di taaki bahar na kate
+                padding: window.innerWidth < 600 ? 35 : 60
             },
             plugins: {
                 legend: { display: false }, 
