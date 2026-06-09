@@ -30,6 +30,11 @@ let expenseChartInstance = null;
 let allUserExpenses = []; 
 let currentMonthFilter = ""; 
 
+// Indian Currency Formatter Helper
+function formatMoney(amount) {
+    return amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function initMonthSelector() {
     const today = new Date();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -208,7 +213,7 @@ function renderTransactions() {
                         <small style="color: var(--text-muted); font-size: 11px;">${dateString}</small>
                     </div>
                     <div style="display: flex; align-items: center; gap: 15px;">
-                        <span class="trans-amount" style="color: ${amountColor}; font-weight: 700;">${sign} ₹ ${exp.amount.toFixed(2)}</span>
+                        <span class="trans-amount" style="color: ${amountColor}; font-weight: 700;">${sign} ₹ ${formatMoney(exp.amount)}</span>
                         <div style="display: flex; gap: 12px;">
                             <i class="fa-solid fa-pen-to-square" onclick="window.editTransaction('${exp.id}', '${transType}', ${exp.amount}, '${safeDesc}', '${exp.category}')" style="color: var(--primary); cursor: pointer; font-size: 16px;"></i>
                             <i class="fa-solid fa-trash" onclick="window.deleteTransaction('${exp.id}')" style="color: var(--danger); cursor: pointer; font-size: 16px;"></i>
@@ -216,8 +221,6 @@ function renderTransactions() {
                     </div>
                 </li>
             `;
-
-            updateAnalytics(categoryExpenseTotals);
         }
     });
 
@@ -225,9 +228,11 @@ function renderTransactions() {
     const incomeEl = document.getElementById('income-total');
     const expenseEl = document.getElementById('expense-total');
     
-    if (totalBalEl) totalBalEl.innerText = `₹ ${(totalIncome - totalExpense).toFixed(2)}`;
-    if (incomeEl) incomeEl.innerText = `₹ ${totalIncome.toFixed(2)}`;
-    if (expenseEl) expenseEl.innerText = `₹ ${totalExpense.toFixed(2)}`;
+    if (totalBalEl) totalBalEl.innerText = `₹ ${formatMoney(totalIncome - totalExpense)}`;
+    if (incomeEl) incomeEl.innerText = `₹ ${formatMoney(totalIncome)}`;
+    if (expenseEl) expenseEl.innerText = `₹ ${formatMoney(totalExpense)}`;
+    
+    updateAnalytics(categoryExpenseTotals);
 }
 
 // --- CRUD Mutation Blocks ---
@@ -298,28 +303,35 @@ document.getElementById('save-btn').addEventListener('click', async () => {
 // --- Replace only this function at the very bottom of script.js ---
 // --- Chart Rendering Logic ---
 // --- Chart Rendering Logic ---
+// --- Chart Rendering Logic ---
+// --- Chart Rendering Logic ---
 function updateAnalytics(categoryData) {
-    const labels = Object.keys(categoryData);
-    const data = Object.values(categoryData);
     
-    // NAYA FIX: Total kharcha ab apne aap calculate hoga (0% wala bug fix)
+    // NAYA: Object ko array mein badal kar Descending Order (Highest to Lowest) mein sort kiya
+    const sortedCategories = Object.entries(categoryData)
+        .sort((a, b) => b[1] - a[1]);
+
+    // Chart ke liye sorted labels aur data alag nikal liye
+    const labels = sortedCategories.map(item => item[0]);
+    const data = sortedCategories.map(item => item[1]);
+    
     const totalMonthExpense = data.reduce((sum, val) => sum + val, 0);
     
-    // 1. Text Summary List Update
+    // 1. Text Summary List Update (Ab Sorted aayegi)
     const summaryList = document.getElementById('category-summary-list');
     if(summaryList) {
         summaryList.innerHTML = '';
-        if (labels.length === 0) {
+        if (sortedCategories.length === 0) {
             summaryList.innerHTML = '<li class="summary-item" style="justify-content: center; color: var(--text-muted);">No expenses recorded this month.</li>';
         } else {
-            labels.forEach(category => {
-                const amount = categoryData[category];
+            // Sorted data se list banegi
+            sortedCategories.forEach(([category, amount]) => {
                 const pct = totalMonthExpense > 0 ? ((amount / totalMonthExpense) * 100).toFixed(1) : 0;
                 
                 summaryList.innerHTML += `
                     <li class="summary-item">
                         <span>${category} <small style="color: var(--text-muted); font-size: 11px;">(${pct}%)</small></span>
-                        <span style="color: var(--danger); font-weight: 700;">₹ ${amount.toFixed(2)}</span>
+                        <span style="color: var(--danger); font-weight: 700;">₹ ${formatMoney(amount)}</span>
                     </li>
                 `;
             });
@@ -343,22 +355,37 @@ function updateAnalytics(categoryData) {
             const meta = chart.getDatasetMeta(0);
             if (!dataset || !dataset.data || dataset.data.length === 0) return;
 
+            // Text overlapping rokne ke liye Y-axis trackers
+            let prevRightY = -9999;
+            let prevLeftY = 9999; 
+
             meta.data.forEach((element, index) => {
                 const val = dataset.data[index];
                 const pct = totalMonthExpense > 0 ? ((val / totalMonthExpense) * 100).toFixed(1) : 0;
                 
-                // NAYA FIX: 3% wali limit hata di gayi hai. Ab har category chart par dikhegi!
                 if (val === 0) return; 
 
                 const angle = (element.startAngle + element.endAngle) / 2;
+                const isRight = Math.cos(angle) >= 0;
                 
-                // Line kahan se shuru hogi (slice ke border se)
                 const xEdge = element.x + Math.cos(angle) * element.outerRadius;
                 const yEdge = element.y + Math.sin(angle) * element.outerRadius;
                 
-                // Line kahan khatam hogi (25px bahar)
-                const xLine = xEdge + Math.cos(angle) * 25;
-                const yLine = yEdge + Math.sin(angle) * 25;
+                let xLine = xEdge + Math.cos(angle) * 25;
+                let yLine = yEdge + Math.sin(angle) * 25;
+                
+                // SMART ANTI-COLLISION LOGIC
+                if (isRight) {
+                    if (yLine < prevRightY + 16) {
+                        yLine = prevRightY + 16;
+                    }
+                    prevRightY = yLine;
+                } else {
+                    if (yLine > prevLeftY - 16) {
+                        yLine = prevLeftY - 16;
+                    }
+                    prevLeftY = yLine;
+                }
                 
                 // Draw the Line
                 ctx.beginPath();
@@ -374,8 +401,8 @@ function updateAnalytics(categoryData) {
                 ctx.textBaseline = 'middle';
                 const labelText = `${chart.data.labels[index]} (${pct}%)`;
 
-                // Smart Alignment: Right side wale right mein, Left side wale left mein
-                if (Math.cos(angle) >= 0) {
+                // Text Alignment
+                if (isRight) {
                     ctx.textAlign = 'left';
                     ctx.fillText(labelText, xLine + 5, yLine);
                 } else {
@@ -386,7 +413,7 @@ function updateAnalytics(categoryData) {
         }
     };
 
-    // 3. Render Final Chart
+    // 3. Render Final Chart (Doughnut bhi ab highest to lowest arrange hokar banega)
     expenseChartInstance = new Chart(ctx, {
         type: 'doughnut',
         plugins: [calloutPlugin], 
@@ -403,8 +430,7 @@ function updateAnalytics(categoryData) {
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                //padding: 60 // Text ke liye thodi aur jagah chhod di taaki bahar na kate
-                padding: window.innerWidth < 600 ? 35 : 60
+                padding: window.innerWidth < 600 ? 35 : 60 
             },
             plugins: {
                 legend: { display: false }, 
@@ -413,7 +439,7 @@ function updateAnalytics(categoryData) {
                         label: function(context) {
                             const val = context.raw;
                             const pct = totalMonthExpense > 0 ? ((val / totalMonthExpense) * 100).toFixed(1) : 0;
-                            return ` ₹ ${val.toFixed(2)} (${pct}%)`;
+                            return ` ₹ ${formatMoney(val)} (${pct}%)`;
                         }
                     }
                 }
