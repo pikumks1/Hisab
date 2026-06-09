@@ -34,7 +34,11 @@ function initMonthSelector() {
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const yyyy = today.getFullYear();
     currentMonthFilter = `${yyyy}-${mm}`;
-    document.getElementById('month-selector').value = currentMonthFilter;
+    
+    const selectorEl = document.getElementById('month-selector');
+    if (selectorEl) {
+        selectorEl.value = currentMonthFilter;
+    }
 }
 
 document.getElementById('month-selector').addEventListener('change', (e) => {
@@ -47,13 +51,31 @@ onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
         initMonthSelector();
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('app-container').style.display = 'grid'; 
+        
+        // Setup User Profile details safely
+        const userNameEl = document.getElementById('user-name');
+        const userPicEl = document.getElementById('user-profile-pic');
+        if (userNameEl) userNameEl.innerText = user.displayName || 'User';
+        if (userPicEl) userPicEl.src = user.photoURL || 'https://via.placeholder.com/40';
+
+        // Toggle UI
+        const loginScreen = document.getElementById('login-screen');
+        const appWrapper = document.getElementById('app-wrapper');
+        const appContainer = document.getElementById('app-container');
+        
+        if (loginScreen) loginScreen.style.display = 'none';
+        if (appWrapper) appWrapper.style.display = 'block'; 
+        if (appContainer) appContainer.style.display = 'grid';
+        
         loadUserData();
     } else {
         currentUser = null;
-        document.getElementById('login-screen').style.display = 'flex';
-        document.getElementById('app-container').style.display = 'none';
+        
+        const loginScreen = document.getElementById('login-screen');
+        const appWrapper = document.getElementById('app-wrapper');
+        
+        if (loginScreen) loginScreen.style.display = 'flex';
+        if (appWrapper) appWrapper.style.display = 'none';
         
         if (unsubscribeExpenses) unsubscribeExpenses();
     }
@@ -83,6 +105,8 @@ function loadUserData() {
 // --- Layout Renderer Framework ---
 function renderTransactions() {
     const list = document.getElementById('expense-list');
+    if (!list) return; // Fail-safe to prevent crash
+    
     let totalIncome = 0;
     let totalExpense = 0;
     list.innerHTML = '';
@@ -125,10 +149,13 @@ function renderTransactions() {
         }
     });
 
-    const currentBalance = totalIncome - totalExpense;
-    document.getElementById('total-balance').innerText = `₹ ${currentBalance.toFixed(2)}`;
-    document.getElementById('income-total').innerText = `₹ ${totalIncome.toFixed(2)}`;
-    document.getElementById('expense-total').innerText = `₹ ${totalExpense.toFixed(2)}`;
+    const totalBalEl = document.getElementById('total-balance');
+    const incomeEl = document.getElementById('income-total');
+    const expenseEl = document.getElementById('expense-total');
+    
+    if (totalBalEl) totalBalEl.innerText = `₹ ${(totalIncome - totalExpense).toFixed(2)}`;
+    if (incomeEl) incomeEl.innerText = `₹ ${totalIncome.toFixed(2)}`;
+    if (expenseEl) expenseEl.innerText = `₹ ${totalExpense.toFixed(2)}`;
 }
 
 // --- CRUD Mutation Blocks ---

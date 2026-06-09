@@ -25,11 +25,67 @@ body {
     background-color: var(--bg);
     color: var(--text);
     min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
+    /* Flex removed from here so navbar sits at the top naturally */
 }
+
+/* --- NEW: Top Navbar Styling --- */
+.top-navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 5%;
+    background: var(--surface);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    margin-bottom: 30px;
+    border-bottom: 1px solid var(--border);
+}
+
+.app-brand {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-profile img {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    object-fit: cover;
+}
+
+.user-profile span {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.logout-btn-nav {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: 0.2s;
+}
+
+.logout-btn-nav:hover {
+    background: #fcd5d2;
+}
+/* -------------------------------- */
 
 /* Container Layout */
 .container {
@@ -39,6 +95,7 @@ body {
     max-width: 1200px;
     width: 100%;
     margin: 0 auto;
+    padding: 0 20px 40px 20px; /* Added bottom padding */
 }
 
 @media (max-width: 900px) {
@@ -210,7 +267,6 @@ body {
     background: #f1f5f9;
 }
 
-/* Dynamic status borders via JS class assignment */
 .transaction-list li.income-item {
     border-left-color: var(--success);
 }
@@ -249,4 +305,6 @@ body {
     max-width: 400px;
     width: 100%;
     border: 1px solid var(--border);
+    /* margin added to center it since body flex is removed */
+    margin: 10vh auto; 
 }
