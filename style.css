@@ -312,3 +312,39 @@ body {
     /* margin added to center it since body flex is removed */
     margin: 10vh auto; 
 }
+
+
+/* --- Analytics UI --- */
+.analytics-card { 
+    grid-column: 1 / -1; 
+    margin-top: 10px; 
+    background: var(--surface); 
+    padding: 30px; 
+    border-radius: var(--radius); 
+    box-shadow: var(--shadow); 
+    border: 1px solid var(--border); 
+}
+.analytics-content { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 40px; 
+    align-items: center; 
+}
+.chart-container { 
+    position: relative; 
+    height: 280px; 
+    width: 100%; 
+}
+.summary-item {
+    display: flex; 
+    justify-content: space-between; 
+    padding: 12px 16px; 
+    background: #f1f5f9; 
+    border-radius: 8px; 
+    margin-bottom: 8px; 
+    font-weight: 500; 
+    font-size: 14px;
+}
+@media (max-width: 900px) {
+    .analytics-content { grid-template-columns: 1fr !important; }
+}

@@ -25,6 +25,7 @@ const expensesCol = collection(db, "expenses");
 let currentEditId = null;
 let currentUser = null;
 let unsubscribeExpenses = null;
+let expenseChartInstance = null;
 
 let allUserExpenses = []; 
 let currentMonthFilter = ""; 
@@ -49,7 +50,7 @@ document.getElementById('month-selector').addEventListener('change', (e) => {
 // --- Authentication Listeners & State Validation ---
 
 // --- LOCAL TEST MODE SWITCH ---
-const LOCAL_TEST_MODE = true; // Isko deploy karne se pehle 'false' kar dena!
+const LOCAL_TEST_MODE = false; // Isko deploy karne se pehle 'false' kar dena!
 
 if (LOCAL_TEST_MODE) {
     // Dummy User Setup for Local Testing
@@ -172,6 +173,8 @@ function renderTransactions() {
     let totalExpense = 0;
     list.innerHTML = '';
 
+    const categoryExpenseTotals = {};
+
     allUserExpenses.forEach((exp) => {
         const dateObj = exp.timestamp ? exp.timestamp.toDate() : new Date();
         const expMonth = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -180,11 +183,17 @@ function renderTransactions() {
 
         if (expMonthYear === currentMonthFilter) {
             const transType = exp.type || 'expense';
-            if (transType === 'income') totalIncome += exp.amount;
-            else totalExpense += exp.amount;
             
-            const dateString = dateObj.toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-            const safeDesc = exp.description.replace(/'/g, "\\'");
+            if (transType === 'income') {
+                totalIncome += exp.amount;
+                // Income graph mein add NAHI hogi
+            } else {
+                totalExpense += exp.amount;
+                // Sirf expense graph mein add hoga
+                categoryExpenseTotals[exp.category] = (categoryExpenseTotals[exp.category] || 0) + exp.amount;
+            }
+            
+            const dateString = dateObj.toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });const safeDesc = exp.description.replace(/'/g, "\\'");
             
             // Premium layout visual cues setup
             const itemClass = transType === 'income' ? 'income-item' : 'expense-item';
@@ -207,6 +216,8 @@ function renderTransactions() {
                     </div>
                 </li>
             `;
+
+            updateAnalytics(categoryExpenseTotals);
         }
     });
 
@@ -282,3 +293,131 @@ document.getElementById('save-btn').addEventListener('click', async () => {
         alert("Transaction operation failed.");
     }
 });
+
+// Chart Rendering Logic
+// --- Replace only this function at the very bottom of script.js ---
+// --- Chart Rendering Logic ---
+// --- Chart Rendering Logic ---
+function updateAnalytics(categoryData) {
+    const labels = Object.keys(categoryData);
+    const data = Object.values(categoryData);
+    
+    // NAYA FIX: Total kharcha ab apne aap calculate hoga (0% wala bug fix)
+    const totalMonthExpense = data.reduce((sum, val) => sum + val, 0);
+    
+    // 1. Text Summary List Update
+    const summaryList = document.getElementById('category-summary-list');
+    if(summaryList) {
+        summaryList.innerHTML = '';
+        if (labels.length === 0) {
+            summaryList.innerHTML = '<li class="summary-item" style="justify-content: center; color: var(--text-muted);">No expenses recorded this month.</li>';
+        } else {
+            labels.forEach(category => {
+                const amount = categoryData[category];
+                const pct = totalMonthExpense > 0 ? ((amount / totalMonthExpense) * 100).toFixed(1) : 0;
+                
+                summaryList.innerHTML += `
+                    <li class="summary-item">
+                        <span>${category} <small style="color: var(--text-muted); font-size: 11px;">(${pct}%)</small></span>
+                        <span style="color: var(--danger); font-weight: 700;">₹ ${amount.toFixed(2)}</span>
+                    </li>
+                `;
+            });
+        }
+    }
+
+    const canvas = document.getElementById('expenseChart');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    if (expenseChartInstance) {
+        expenseChartInstance.destroy(); 
+    }
+
+    // 2. Custom Plugin: Chart se line bahar nikal kar text likhne ke liye
+    const calloutPlugin = {
+        id: 'calloutPlugin',
+        afterDraw: (chart) => {
+            const ctx = chart.ctx;
+            const dataset = chart.data.datasets[0];
+            const meta = chart.getDatasetMeta(0);
+            if (!dataset || !dataset.data || dataset.data.length === 0) return;
+
+            meta.data.forEach((element, index) => {
+                const val = dataset.data[index];
+                const pct = totalMonthExpense > 0 ? ((val / totalMonthExpense) * 100).toFixed(1) : 0;
+                
+                // NAYA FIX: 3% wali limit hata di gayi hai. Ab har category chart par dikhegi!
+                if (val === 0) return; 
+
+                const angle = (element.startAngle + element.endAngle) / 2;
+                
+                // Line kahan se shuru hogi (slice ke border se)
+                const xEdge = element.x + Math.cos(angle) * element.outerRadius;
+                const yEdge = element.y + Math.sin(angle) * element.outerRadius;
+                
+                // Line kahan khatam hogi (25px bahar)
+                const xLine = xEdge + Math.cos(angle) * 25;
+                const yLine = yEdge + Math.sin(angle) * 25;
+                
+                // Draw the Line
+                ctx.beginPath();
+                ctx.moveTo(xEdge, yEdge);
+                ctx.lineTo(xLine, yLine);
+                ctx.strokeStyle = '#9ca3af'; 
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Draw the Text (Category + %)
+                ctx.fillStyle = '#0f172a';
+                ctx.font = '500 11px Poppins';
+                ctx.textBaseline = 'middle';
+                const labelText = `${chart.data.labels[index]} (${pct}%)`;
+
+                // Smart Alignment: Right side wale right mein, Left side wale left mein
+                if (Math.cos(angle) >= 0) {
+                    ctx.textAlign = 'left';
+                    ctx.fillText(labelText, xLine + 5, yLine);
+                } else {
+                    ctx.textAlign = 'right';
+                    ctx.fillText(labelText, xLine - 5, yLine);
+                }
+            });
+        }
+    };
+
+    // 3. Render Final Chart
+    expenseChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        plugins: [calloutPlugin], 
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: ['#6b4ce6', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#84cc16'],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+                padding: 60 // Text ke liye thodi aur jagah chhod di taaki bahar na kate
+            },
+            plugins: {
+                legend: { display: false }, 
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const val = context.raw;
+                            const pct = totalMonthExpense > 0 ? ((val / totalMonthExpense) * 100).toFixed(1) : 0;
+                            return ` ₹ ${val.toFixed(2)} (${pct}%)`;
+                        }
+                    }
+                }
+            },
+            cutout: '65%'
+        }
+    });
+}
