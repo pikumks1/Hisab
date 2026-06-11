@@ -55,7 +55,7 @@ document.getElementById('month-selector').addEventListener('change', (e) => {
 // --- Authentication Listeners & State Validation ---
 
 // --- LOCAL TEST MODE SWITCH ---
-const LOCAL_TEST_MODE = true; // Isko deploy karne se pehle 'false' kar dena!
+const LOCAL_TEST_MODE = false; // Isko deploy karne se pehle 'false' kar dena!
 
 if (LOCAL_TEST_MODE) {
     // Dummy User Setup for Local Testing
