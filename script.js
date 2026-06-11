@@ -55,7 +55,7 @@ document.getElementById('month-selector').addEventListener('change', (e) => {
 // --- Authentication Listeners & State Validation ---
 
 // --- LOCAL TEST MODE SWITCH ---
-const LOCAL_TEST_MODE = false; // Isko deploy karne se pehle 'false' kar dena!
+const LOCAL_TEST_MODE = true; // Isko deploy karne se pehle 'false' kar dena!
 
 if (LOCAL_TEST_MODE) {
     // Dummy User Setup for Local Testing
@@ -305,29 +305,23 @@ document.getElementById('save-btn').addEventListener('click', async () => {
 // --- Chart Rendering Logic ---
 // --- Chart Rendering Logic ---
 // --- Chart Rendering Logic ---
+// --- Chart Rendering Logic ---
 function updateAnalytics(categoryData) {
-    
-    // NAYA: Object ko array mein badal kar Descending Order (Highest to Lowest) mein sort kiya
-    const sortedCategories = Object.entries(categoryData)
-        .sort((a, b) => b[1] - a[1]);
-
-    // Chart ke liye sorted labels aur data alag nikal liye
+    const sortedCategories = Object.entries(categoryData).sort((a, b) => b[1] - a[1]);
     const labels = sortedCategories.map(item => item[0]);
     const data = sortedCategories.map(item => item[1]);
     
     const totalMonthExpense = data.reduce((sum, val) => sum + val, 0);
     
-    // 1. Text Summary List Update (Ab Sorted aayegi)
+    // 1. Text Summary List Update
     const summaryList = document.getElementById('category-summary-list');
     if(summaryList) {
         summaryList.innerHTML = '';
         if (sortedCategories.length === 0) {
             summaryList.innerHTML = '<li class="summary-item" style="justify-content: center; color: var(--text-muted);">No expenses recorded this month.</li>';
         } else {
-            // Sorted data se list banegi
             sortedCategories.forEach(([category, amount]) => {
                 const pct = totalMonthExpense > 0 ? ((amount / totalMonthExpense) * 100).toFixed(1) : 0;
-                
                 summaryList.innerHTML += `
                     <li class="summary-item">
                         <span>${category} <small style="color: var(--text-muted); font-size: 11px;">(${pct}%)</small></span>
@@ -346,77 +340,9 @@ function updateAnalytics(categoryData) {
         expenseChartInstance.destroy(); 
     }
 
-    // 2. Custom Plugin: Chart se line bahar nikal kar text likhne ke liye
-    const calloutPlugin = {
-        id: 'calloutPlugin',
-        afterDraw: (chart) => {
-            const ctx = chart.ctx;
-            const dataset = chart.data.datasets[0];
-            const meta = chart.getDatasetMeta(0);
-            if (!dataset || !dataset.data || dataset.data.length === 0) return;
-
-            // Text overlapping rokne ke liye Y-axis trackers
-            let prevRightY = -9999;
-            let prevLeftY = 9999; 
-
-            meta.data.forEach((element, index) => {
-                const val = dataset.data[index];
-                const pct = totalMonthExpense > 0 ? ((val / totalMonthExpense) * 100).toFixed(1) : 0;
-                
-                if (val === 0) return; 
-
-                const angle = (element.startAngle + element.endAngle) / 2;
-                const isRight = Math.cos(angle) >= 0;
-                
-                const xEdge = element.x + Math.cos(angle) * element.outerRadius;
-                const yEdge = element.y + Math.sin(angle) * element.outerRadius;
-                
-                let xLine = xEdge + Math.cos(angle) * 25;
-                let yLine = yEdge + Math.sin(angle) * 25;
-                
-                // SMART ANTI-COLLISION LOGIC
-                if (isRight) {
-                    if (yLine < prevRightY + 16) {
-                        yLine = prevRightY + 16;
-                    }
-                    prevRightY = yLine;
-                } else {
-                    if (yLine > prevLeftY - 16) {
-                        yLine = prevLeftY - 16;
-                    }
-                    prevLeftY = yLine;
-                }
-                
-                // Draw the Line
-                ctx.beginPath();
-                ctx.moveTo(xEdge, yEdge);
-                ctx.lineTo(xLine, yLine);
-                ctx.strokeStyle = '#9ca3af'; 
-                ctx.lineWidth = 1;
-                ctx.stroke();
-
-                // Draw the Text (Category + %)
-                ctx.fillStyle = '#0f172a';
-                ctx.font = '500 11px Poppins';
-                ctx.textBaseline = 'middle';
-                const labelText = `${chart.data.labels[index]} (${pct}%)`;
-
-                // Text Alignment
-                if (isRight) {
-                    ctx.textAlign = 'left';
-                    ctx.fillText(labelText, xLine + 5, yLine);
-                } else {
-                    ctx.textAlign = 'right';
-                    ctx.fillText(labelText, xLine - 5, yLine);
-                }
-            });
-        }
-    };
-
-    // 3. Render Final Chart (Doughnut bhi ab highest to lowest arrange hokar banega)
+    // 2. Render Final Chart (Lines removed, Default Legend ON)
     expenseChartInstance = new Chart(ctx, {
         type: 'doughnut',
-        plugins: [calloutPlugin], 
         data: {
             labels: labels,
             datasets: [{
@@ -430,10 +356,20 @@ function updateAnalytics(categoryData) {
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                padding: window.innerWidth < 600 ? 35 : 60 
+                padding: 10 // Normal padding, extra space ka issue khatam
             },
             plugins: {
-                legend: { display: false }, 
+                // Color Legend Enable Kar Diya
+                legend: { 
+                    display: true, 
+                    position: window.innerWidth < 600 ? 'bottom' : 'right', // Mobile pe neeche, PC pe side mein
+                    labels: {
+                        font: { family: "'Poppins', sans-serif", size: 11 },
+                        padding: 12,
+                        usePointStyle: true, // Legend ko chote dots banata hai
+                        pointStyle: 'circle'
+                    }
+                }, 
                 tooltip: {
                     callbacks: {
                         label: function(context) {
@@ -444,7 +380,7 @@ function updateAnalytics(categoryData) {
                     }
                 }
             },
-            cutout: '65%'
+            cutout: '70%'
         }
     });
 }
